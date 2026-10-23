@@ -1,0 +1,10 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Todo acesso passa pela API Express usando o Admin SDK, que ignora
+    // estas regras. O SDK cliente não deve ler nem escrever no Firestore.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
