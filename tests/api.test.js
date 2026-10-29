@@ -1,10 +1,17 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { readFileSync } from "node:fs";
+import { after, describe, it } from "node:test";
+import { PGlite } from "@electric-sql/pglite";
+import pg from "pg";
 import request from "supertest";
 import { createApp } from "../server/app.js";
 import { createDatabase } from "../server/db.js";
 import { todayISO } from "../server/date.js";
 import { createFirestoreStore } from "../server/firestore-store.js";
+import {
+  createPostgresStore,
+  resolveSsl,
+} from "../server/postgres-store.js";
 import { createSqliteStore } from "../server/sqlite-store.js";
 import { FakeFirestore } from "./fake-firestore.js";
 
@@ -18,6 +25,55 @@ const backends = [
     create: async () => createApp(await createFirestoreStore(new FakeFirestore())),
   },
 ];
+
+const postgresUrl = process.env.TEST_DATABASE_URL;
+const schema = readFileSync(
+  new URL("../server/postgres-schema.sql", import.meta.url),
+  "utf8",
+);
+
+let postgresPool;
+let postgresBackendName;
+
+if (postgresUrl) {
+  postgresPool = new pg.Pool({
+    connectionString: postgresUrl,
+    max: 2,
+    ssl: resolveSsl(postgresUrl),
+  });
+  await postgresPool.query(schema);
+  postgresBackendName = "PostgreSQL";
+} else {
+  const pglite = new PGlite();
+  await pglite.exec(schema);
+  postgresPool = {
+    query: (sql, params) => pglite.query(sql, params),
+    async connect() {
+      return {
+        query: (sql, params) => pglite.query(sql, params),
+        release() {},
+      };
+    },
+    async end() {
+      await pglite.close();
+    },
+  };
+  postgresBackendName = "PostgreSQL (PGlite)";
+}
+
+backends.push({
+  name: postgresBackendName,
+  create: async () => {
+    await postgresPool.query(
+      "TRUNCATE expenses, recurring_expenses, skipped_months, share_links RESTART IDENTITY",
+    );
+    return createApp(createPostgresStore({ pool: postgresPool }));
+  },
+});
+
+after(async () => {
+  await postgresPool.end();
+});
 
 function validExpense(overrides = {}) {
   return {

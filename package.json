@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=24.0.0"
+    "node": "24.x"
   },
   "description": "Gestão de despesas mensais com calendário, recorrências e compartilhamento somente leitura.",
   "scripts": {
@@ -14,17 +14,21 @@
     "start": "NODE_ENV=production node server/index.js",
     "test": "node --test tests/*.test.js",
     "migrate:firestore": "node scripts/migrate-to-firestore.js",
+    "migrate:postgres": "node scripts/migrate-to-postgres.js",
     "deploy": "npm run build && npx firebase-tools deploy --only hosting,firestore"
   },
   "dependencies": {
+    "@supabase/server": "^1.9.2",
     "express": "^4.21.2",
     "firebase": "^13.1.0",
-    "firebase-admin": "^13.10.0",
+    "firebase-admin": "^14.5.0",
     "lucide-react": "^0.468.0",
+    "pg": "^8.23.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.13",
     "@types/node": "^22.10.2",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
